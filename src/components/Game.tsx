@@ -351,11 +351,16 @@ export default function Game() {
     const right = new THREE.Vector3();
 
     let rafId = 0;
+    let lastTileCount = stateRef.current.tiles.length;
     const start = performance.now();
 
     const animate = () => {
       rafId = requestAnimationFrame(animate);
       const now = performance.now();
+      if (stateRef.current.tiles.length !== lastTileCount) {
+        rebuildRaft();
+        lastTileCount = stateRef.current.tiles.length;
+      }
       const dt = Math.min(0.05, (now - lastTime) / 1000);
       lastTime = now;
       const t = (now - start) / 1000;
