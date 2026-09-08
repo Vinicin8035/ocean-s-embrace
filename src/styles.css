@@ -21,28 +21,33 @@
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-danger: var(--danger);
+  --color-sage: var(--sage);
+  --color-teal: var(--teal);
   --color-hud-bg: var(--hud-bg);
   --color-hud-stroke: var(--hud-stroke);
-  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-display: "Outfit", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
 :root {
-  --radius: 0.25rem;
-  --background: oklch(0.18 0.04 230);
-  --foreground: oklch(0.96 0.01 220);
-  --card: oklch(0.22 0.04 230);
-  --card-foreground: oklch(0.96 0.01 220);
-  --primary: oklch(0.78 0.14 75);
-  --primary-foreground: oklch(0.15 0.03 230);
-  --accent: oklch(0.72 0.16 200);
-  --accent-foreground: oklch(0.12 0.03 230);
-  --muted: oklch(0.28 0.03 230);
-  --muted-foreground: oklch(0.7 0.02 220);
-  --border: oklch(0.96 0.01 220 / 0.18);
-  --danger: oklch(0.65 0.22 25);
-  --hud-bg: oklch(0.12 0.03 230 / 0.55);
-  --hud-stroke: oklch(0.78 0.14 75 / 0.4);
+  --radius: 0.5rem;
+  /* Palette: Yale Blue / Stormy Teal / Muted Teal / Dry Sage / Soft Peach */
+  --background: #033f63;
+  --foreground: #fedc97;
+  --card: #073f5e;
+  --card-foreground: #fedc97;
+  --primary: #fedc97;
+  --primary-foreground: #033f63;
+  --accent: #7c9885;
+  --accent-foreground: #033f63;
+  --teal: #28666e;
+  --sage: #b5b682;
+  --muted: #28666e;
+  --muted-foreground: #b5b682;
+  --border: rgb(124 152 133 / 0.35);
+  --danger: #fedc97;
+  --hud-bg: rgb(3 63 99 / 0.6);
+  --hud-stroke: rgb(40 102 110 / 0.5);
 }
 
 @layer base {
@@ -60,11 +65,11 @@
 }
 
 @font-face {
-  font-family: "Space Grotesk";
+  font-family: "Outfit";
   font-style: normal;
-  font-weight: 300 700;
+  font-weight: 200 800;
   font-display: swap;
-  src: url("https://fonts.gstatic.com/s/spacegrotesk/v16/V8mDoQDjQSkFtoMM3T6r8E7mF71Q-gOoraIAEj7aUUI.woff2") format("woff2");
+  src: url("https://fonts.gstatic.com/s/outfit/v11/QGYvz_MVcBeNP4NJuktqQ4E.woff2") format("woff2");
 }
 @font-face {
   font-family: "JetBrains Mono";
