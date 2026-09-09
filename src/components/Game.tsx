@@ -358,6 +358,11 @@ export default function Game() {
     const fwd = new THREE.Vector3();
     const right = new THREE.Vector3();
 
+    // smoothed raft motion (inertia so the raft lags behind the swell)
+    const raft = { y: 0, vy: 0, roll: 0, pitch: 0, vRoll: 0, vPitch: 0 };
+    let camBob = 0;
+
+
     let rafId = 0;
     let lastTileCount = stateRef.current.tiles.length;
     const start = performance.now();
