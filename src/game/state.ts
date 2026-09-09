@@ -16,6 +16,7 @@ export type GameState = {
   energy: Stat;
   health: Stat;
   resources: Resources;
+  items: Record<string, number>;
   tiles: RaftTile[];
   paused: boolean;
   dead: boolean;
@@ -30,6 +31,7 @@ export function initialState(): GameState {
     energy: { value: 90, max: 100 },
     health: { value: 100, max: 100 },
     resources: { wood: 0, plastic: 0, scrap: 0, food: 1, water: 1 },
+    items: {},
     tiles: [
       { x: 0, z: 0 },
       { x: 1, z: 0 },
