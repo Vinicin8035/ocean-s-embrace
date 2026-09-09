@@ -408,15 +408,54 @@ export default function Game() {
         }
       }
 
-      const cx = 0.5 * TILE, cz = 0.5 * TILE;
-      const h0 = sampleWaveHeight(cx, cz, t);
-      const hx = sampleWaveHeight(cx + 1, cz, t);
-      const hz = sampleWaveHeight(cx, cz + 1, t);
-      raftRoot.position.y = h0 * 0.7;
-      raftRoot.rotation.z = -(hx - h0) * 0.3;
-      raftRoot.rotation.x = (hz - h0) * 0.3;
+      // --- buoyancy: sample the swell at the raft's real footprint ---
+      const tilesNow = stateRef.current.tiles;
+      let sumX = 0, sumZ = 0;
+      for (const tt of tilesNow) { sumX += tt.x * TILE; sumZ += tt.z * TILE; }
+      const cx = tilesNow.length ? sumX / tilesNow.length : 0;
+      const cz = tilesNow.length ? sumZ / tilesNow.length : 0;
+      // half-extent of the raft, so bigger rafts ride the waves more calmly
+      let ext = TILE;
+      for (const tt of tilesNow) {
+        ext = Math.max(ext, Math.abs(tt.x * TILE - cx) + TILE / 2, Math.abs(tt.z * TILE - cz) + TILE / 2);
+      }
+      const stability = 1 / (1 + (ext - TILE) * 0.28);
 
-      camera.position.y = raftRoot.position.y + 1.7;
+      const hC = sampleWaveHeight(cx, cz, t);
+      const hXp = sampleWaveHeight(cx + ext, cz, t);
+      const hXn = sampleWaveHeight(cx - ext, cz, t);
+      const hZp = sampleWaveHeight(cx, cz + ext, t);
+      const hZn = sampleWaveHeight(cx, cz - ext, t);
+
+      const targetY = (hC * 2 + hXp + hXn + hZp + hZn) / 6 * 0.85;
+      const targetRoll = Math.atan2(hXn - hXp, ext * 2) * 0.85 * stability;
+      const targetPitch = Math.atan2(hZp - hZn, ext * 2) * 0.85 * stability;
+
+      // critically-damped springs => heavy, floaty motion instead of snapping
+      const spring = (cur: number, vel: number, target: number, k: number, d: number) => {
+        const a = (target - cur) * k - vel * d;
+        const nv = vel + a * dt;
+        return [cur + nv * dt, nv] as const;
+      };
+      [raft.y, raft.vy] = spring(raft.y, raft.vy, targetY, 26, 7.5);
+      [raft.roll, raft.vRoll] = spring(raft.roll, raft.vRoll, targetRoll, 18, 6.2);
+      [raft.pitch, raft.vPitch] = spring(raft.pitch, raft.vPitch, targetPitch, 18, 6.2);
+
+      raftRoot.position.y = raft.y;
+      raftRoot.rotation.order = "ZXY";
+      raftRoot.rotation.z = raft.roll;
+      raftRoot.rotation.x = raft.pitch;
+
+      // stand on the deck: follow the tilted plane under the player + subtle bob
+      const localX = camera.position.x - cx;
+      const localZ = camera.position.z - cz;
+      const deckY = raft.y + Math.tan(raft.pitch) * localZ - Math.tan(raft.roll) * localX;
+      const moving = keys["KeyW"] || keys["KeyS"] || keys["KeyA"] || keys["KeyD"];
+      camBob += dt * (moving ? 7.5 : 1.6);
+      const bob = Math.sin(camBob) * (moving ? 0.045 : 0.012);
+      camera.position.y = deckY + 1.7 + bob;
+      camera.rotation.z = -raft.roll * 0.35;
+
 
       (oceanMat.uniforms.uTime.value as number) = t;
       ocean.position.x = camera.position.x;
