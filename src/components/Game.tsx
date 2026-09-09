@@ -67,11 +67,19 @@ export default function Game() {
     const sky = createSky();
     scene.add(sky);
 
-    const sun = new THREE.DirectionalLight(0xffeacc, 1.6);
+    const sun = new THREE.DirectionalLight(0xfedc97, 1.6);
     sun.position.set(40, 60, 20);
     scene.add(sun);
-    const ambient = new THREE.HemisphereLight(0xbcd6ff, 0x0a1822, 0.55);
+    const ambient = new THREE.HemisphereLight(0x7c9885, 0x033f63, 0.55);
     scene.add(ambient);
+    // bounce light from the water, keeps the raft readable at dusk/night
+    const bounce = new THREE.DirectionalLight(0x28666e, 0.35);
+    bounce.position.set(-30, -10, -20);
+    scene.add(bounce);
+    const rim = new THREE.DirectionalLight(0xb5b682, 0.25);
+    rim.position.set(-20, 25, -35);
+    scene.add(rim);
+
 
     const oceanMat = createOceanMaterial(camera.position);
     const oceanGeo = new THREE.PlaneGeometry(800, 800, 256, 256);
@@ -350,6 +358,11 @@ export default function Game() {
     const fwd = new THREE.Vector3();
     const right = new THREE.Vector3();
 
+    // smoothed raft motion (inertia so the raft lags behind the swell)
+    const raft = { y: 0, vy: 0, roll: 0, pitch: 0, vRoll: 0, vPitch: 0 };
+    let camBob = 0;
+
+
     let rafId = 0;
     let lastTileCount = stateRef.current.tiles.length;
     const start = performance.now();
@@ -395,15 +408,54 @@ export default function Game() {
         }
       }
 
-      const cx = 0.5 * TILE, cz = 0.5 * TILE;
-      const h0 = sampleWaveHeight(cx, cz, t);
-      const hx = sampleWaveHeight(cx + 1, cz, t);
-      const hz = sampleWaveHeight(cx, cz + 1, t);
-      raftRoot.position.y = h0 * 0.7;
-      raftRoot.rotation.z = -(hx - h0) * 0.3;
-      raftRoot.rotation.x = (hz - h0) * 0.3;
+      // --- buoyancy: sample the swell at the raft's real footprint ---
+      const tilesNow = stateRef.current.tiles;
+      let sumX = 0, sumZ = 0;
+      for (const tt of tilesNow) { sumX += tt.x * TILE; sumZ += tt.z * TILE; }
+      const cx = tilesNow.length ? sumX / tilesNow.length : 0;
+      const cz = tilesNow.length ? sumZ / tilesNow.length : 0;
+      // half-extent of the raft, so bigger rafts ride the waves more calmly
+      let ext = TILE;
+      for (const tt of tilesNow) {
+        ext = Math.max(ext, Math.abs(tt.x * TILE - cx) + TILE / 2, Math.abs(tt.z * TILE - cz) + TILE / 2);
+      }
+      const stability = 1 / (1 + (ext - TILE) * 0.28);
 
-      camera.position.y = raftRoot.position.y + 1.7;
+      const hC = sampleWaveHeight(cx, cz, t);
+      const hXp = sampleWaveHeight(cx + ext, cz, t);
+      const hXn = sampleWaveHeight(cx - ext, cz, t);
+      const hZp = sampleWaveHeight(cx, cz + ext, t);
+      const hZn = sampleWaveHeight(cx, cz - ext, t);
+
+      const targetY = (hC * 2 + hXp + hXn + hZp + hZn) / 6 * 0.85;
+      const targetRoll = Math.atan2(hXn - hXp, ext * 2) * 0.85 * stability;
+      const targetPitch = Math.atan2(hZp - hZn, ext * 2) * 0.85 * stability;
+
+      // critically-damped springs => heavy, floaty motion instead of snapping
+      const spring = (cur: number, vel: number, target: number, k: number, d: number) => {
+        const a = (target - cur) * k - vel * d;
+        const nv = vel + a * dt;
+        return [cur + nv * dt, nv] as const;
+      };
+      [raft.y, raft.vy] = spring(raft.y, raft.vy, targetY, 26, 7.5);
+      [raft.roll, raft.vRoll] = spring(raft.roll, raft.vRoll, targetRoll, 18, 6.2);
+      [raft.pitch, raft.vPitch] = spring(raft.pitch, raft.vPitch, targetPitch, 18, 6.2);
+
+      raftRoot.position.y = raft.y;
+      raftRoot.rotation.order = "ZXY";
+      raftRoot.rotation.z = raft.roll;
+      raftRoot.rotation.x = raft.pitch;
+
+      // stand on the deck: follow the tilted plane under the player + subtle bob
+      const localX = camera.position.x - cx;
+      const localZ = camera.position.z - cz;
+      const deckY = raft.y + Math.tan(raft.pitch) * localZ - Math.tan(raft.roll) * localX;
+      const moving = keys["KeyW"] || keys["KeyS"] || keys["KeyA"] || keys["KeyD"];
+      camBob += dt * (moving ? 7.5 : 1.6);
+      const bob = Math.sin(camBob) * (moving ? 0.045 : 0.012);
+      camera.position.y = deckY + 1.7 + bob;
+      camera.rotation.z = -raft.roll * 0.35;
+
 
       (oceanMat.uniforms.uTime.value as number) = t;
       ocean.position.x = camera.position.x;
@@ -415,30 +467,47 @@ export default function Game() {
       sun.position.copy(sunDir).multiplyScalar(80);
       const dayFactor = Math.max(0, sunDir.y);
       const nightFactor = Math.max(0, -sunDir.y * 0.7 + 0.1);
-      sun.intensity = 0.2 + dayFactor * 1.6;
-      ambient.intensity = 0.25 + dayFactor * 0.5;
-
-      const topDay = new THREE.Color(0.32, 0.55, 0.85);
-      const topNight = new THREE.Color(0.02, 0.03, 0.08);
-      const horDay = new THREE.Color(0.85, 0.78, 0.68);
-      const horDusk = new THREE.Color(0.95, 0.45, 0.25);
-      const horNight = new THREE.Color(0.05, 0.05, 0.12);
       const dusk = Math.pow(Math.max(0, 1 - Math.abs(sunDir.y) * 3), 2);
+
+      // --- global illumination balance (palette-driven) ---
+      const sunDay = new THREE.Color(0xfedc97);
+      const sunDusk = new THREE.Color(0xffb066);
+      const moon = new THREE.Color(0x7c9885);
+      sun.color.copy(sunDay).lerp(sunDusk, dusk).lerp(moon, Math.max(0, -sunDir.y * 1.6));
+      sun.intensity = 0.25 + dayFactor * 1.55;
+
+      ambient.intensity = 0.35 + dayFactor * 0.55;
+      (ambient.color as THREE.Color).copy(new THREE.Color(0xb5b682)).lerp(new THREE.Color(0x28666e), 1 - dayFactor);
+      (ambient.groundColor as THREE.Color).copy(new THREE.Color(0x28666e)).lerp(new THREE.Color(0x033f63), 1 - dayFactor);
+      bounce.intensity = 0.18 + dayFactor * 0.3;
+      rim.intensity = 0.12 + dayFactor * 0.22 + dusk * 0.25;
+
+      const topDay = new THREE.Color(0.09, 0.33, 0.55);
+      const topNight = new THREE.Color(0.008, 0.03, 0.07);
+      const horDay = new THREE.Color(0.72, 0.76, 0.62);
+      const horDusk = new THREE.Color(1.0, 0.78, 0.45);
+      const horNight = new THREE.Color(0.02, 0.09, 0.14);
       const topCol = topDay.clone().lerp(topNight, 1 - dayFactor);
-      const horCol = horDay.clone().lerp(horDusk, dusk).lerp(horNight, Math.max(0, -sunDir.y));
+      const horCol = horDay.clone().lerp(horDusk, dusk).lerp(horNight, Math.max(0, -sunDir.y * 1.4));
 
       const skyMat = (sky.material as THREE.ShaderMaterial);
       (skyMat.uniforms.uSunDir.value as THREE.Vector3).copy(sunDir);
       (skyMat.uniforms.uTop.value as THREE.Color).copy(topCol);
       (skyMat.uniforms.uHorizon.value as THREE.Color).copy(horCol);
       (skyMat.uniforms.uNight.value as number) = nightFactor;
+      (skyMat.uniforms.uTime.value as number) = t;
+      (skyMat.uniforms.uSunColor.value as THREE.Color).copy(sun.color);
 
       (oceanMat.uniforms.uSunDir.value as THREE.Vector3).copy(sunDir);
       (oceanMat.uniforms.uSkyTop.value as THREE.Color).copy(topCol);
       (oceanMat.uniforms.uSkyHorizon.value as THREE.Color).copy(horCol);
+      (oceanMat.uniforms.uSunColor.value as THREE.Color).copy(sun.color);
+      (oceanMat.uniforms.uDayFactor.value as number) = dayFactor;
 
       scene.fog!.color.copy(horCol);
-      renderer.toneMappingExposure = 0.85 + dayFactor * 0.45;
+      (scene.fog as THREE.FogExp2).density = 0.0035 + (1 - dayFactor) * 0.0025;
+
+      renderer.toneMappingExposure = 0.95 + dayFactor * 0.4;
 
       for (const f of floaters) {
         const wy = sampleWaveHeight(f.mesh.position.x, f.mesh.position.z, t);
