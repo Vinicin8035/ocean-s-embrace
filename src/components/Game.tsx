@@ -67,11 +67,19 @@ export default function Game() {
     const sky = createSky();
     scene.add(sky);
 
-    const sun = new THREE.DirectionalLight(0xffeacc, 1.6);
+    const sun = new THREE.DirectionalLight(0xfedc97, 1.6);
     sun.position.set(40, 60, 20);
     scene.add(sun);
-    const ambient = new THREE.HemisphereLight(0xbcd6ff, 0x0a1822, 0.55);
+    const ambient = new THREE.HemisphereLight(0x7c9885, 0x033f63, 0.55);
     scene.add(ambient);
+    // bounce light from the water, keeps the raft readable at dusk/night
+    const bounce = new THREE.DirectionalLight(0x28666e, 0.35);
+    bounce.position.set(-30, -10, -20);
+    scene.add(bounce);
+    const rim = new THREE.DirectionalLight(0xb5b682, 0.25);
+    rim.position.set(-20, 25, -35);
+    scene.add(rim);
+
 
     const oceanMat = createOceanMaterial(camera.position);
     const oceanGeo = new THREE.PlaneGeometry(800, 800, 256, 256);
