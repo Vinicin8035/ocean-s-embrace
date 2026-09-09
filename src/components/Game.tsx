@@ -507,7 +507,7 @@ export default function Game() {
       scene.fog!.color.copy(horCol);
       (scene.fog as THREE.FogExp2).density = 0.0035 + (1 - dayFactor) * 0.0025;
 
-      renderer.toneMappingExposure = 0.85 + dayFactor * 0.45;
+      renderer.toneMappingExposure = 0.95 + dayFactor * 0.4;
 
       for (const f of floaters) {
         const wy = sampleWaveHeight(f.mesh.position.x, f.mesh.position.z, t);
