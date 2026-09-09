@@ -3,11 +3,11 @@ import * as THREE from "three";
 // Wave set shared by GPU (vertex shader) and CPU (buoyancy sampling)
 // [dirX, dirZ, steepness, wavelength, speed]
 export const WAVES: Array<[number, number, number, number, number]> = [
-  [1.0, 0.6, 0.16, 26.0, 0.9],
-  [-0.7, 1.0, 0.13, 15.0, 1.05],
-  [0.3, -1.0, 0.10, 9.0, 1.3],
-  [-1.0, -0.4, 0.07, 5.5, 1.6],
-  [0.8, -0.3, 0.05, 3.2, 1.9],
+  [1.0, 0.6, 0.10, 30.0, 0.55],
+  [-0.7, 1.0, 0.08, 18.0, 0.6],
+  [0.3, -1.0, 0.055, 11.0, 0.7],
+  [-1.0, -0.4, 0.04, 6.5, 0.8],
+  [0.8, -0.3, 0.03, 4.0, 0.95],
 ];
 
 export const oceanVertex = /* glsl */ `
@@ -43,11 +43,11 @@ export const oceanVertex = /* glsl */ `
     vec3 binormal = vec3(0.0, 0.0, 1.0);
     vec3 offset = vec3(0.0);
 
-    offset += gerstner(pos.xz, vec2(1.0, 0.6), 0.16, 26.0, 0.9, uTime, tangent, binormal);
-    offset += gerstner(pos.xz, vec2(-0.7, 1.0), 0.13, 15.0, 1.05, uTime, tangent, binormal);
-    offset += gerstner(pos.xz, vec2(0.3, -1.0), 0.10, 9.0, 1.3, uTime, tangent, binormal);
-    offset += gerstner(pos.xz, vec2(-1.0, -0.4), 0.07, 5.5, 1.6, uTime, tangent, binormal);
-    offset += gerstner(pos.xz, vec2(0.8, -0.3), 0.05, 3.2, 1.9, uTime, tangent, binormal);
+    offset += gerstner(pos.xz, vec2(1.0, 0.6), 0.10, 30.0, 0.55, uTime, tangent, binormal);
+    offset += gerstner(pos.xz, vec2(-0.7, 1.0), 0.08, 18.0, 0.6, uTime, tangent, binormal);
+    offset += gerstner(pos.xz, vec2(0.3, -1.0), 0.055, 11.0, 0.7, uTime, tangent, binormal);
+    offset += gerstner(pos.xz, vec2(-1.0, -0.4), 0.04, 6.5, 0.8, uTime, tangent, binormal);
+    offset += gerstner(pos.xz, vec2(0.8, -0.3), 0.03, 4.0, 0.95, uTime, tangent, binormal);
 
     pos += offset;
 
@@ -56,7 +56,7 @@ export const oceanVertex = /* glsl */ `
     vHeight = offset.y;
     vec4 wp = modelMatrix * vec4(pos, 1.0);
     vWorldPos = wp.xyz;
-    vFoam = smoothstep(0.55, 1.15, offset.y);
+    vFoam = smoothstep(0.32, 0.80, offset.y);
 
     gl_Position = projectionMatrix * viewMatrix * wp;
   }
@@ -98,9 +98,9 @@ export const oceanFragment = /* glsl */ `
 
     // ripple detail normals
     vec2 rp = vWorldPos.xz * 1.6;
-    float n1 = noise(rp + vec2(uTime * 0.35, uTime * 0.22));
-    float n2 = noise(rp * 2.3 - vec2(uTime * 0.5, uTime * 0.31));
-    vec3 detail = normalize(vec3((n1 - 0.5) * 0.35, 1.0, (n2 - 0.5) * 0.35));
+    float n1 = noise(rp + vec2(uTime * 0.16, uTime * 0.10));
+    float n2 = noise(rp * 2.3 - vec2(uTime * 0.22, uTime * 0.14));
+    vec3 detail = normalize(vec3((n1 - 0.5) * 0.22, 1.0, (n2 - 0.5) * 0.22));
     float distFade = 1.0 - smoothstep(0.0, 60.0, length(uCamPos.xz - vWorldPos.xz));
     N = normalize(mix(N, normalize(N + detail - vec3(0.0, 1.0, 0.0)), distFade * 0.8));
 
@@ -126,8 +126,8 @@ export const oceanFragment = /* glsl */ `
     col += sunSpec;
 
     // foam crests with noise break-up
-    float foam = vFoam * (0.55 + 0.45 * noise(vWorldPos.xz * 3.0 + uTime * 0.4));
-    col = mix(col, mix(uShallow, vec3(1.0), 0.85), clamp(foam, 0.0, 1.0) * 0.7);
+    float foam = vFoam * (0.55 + 0.45 * noise(vWorldPos.xz * 3.0 + uTime * 0.18));
+    col = mix(col, mix(uShallow, vec3(1.0), 0.85), clamp(foam, 0.0, 1.0) * 0.55);
 
     // horizon fog
     float fog = smoothstep(90.0, 360.0, dist);
