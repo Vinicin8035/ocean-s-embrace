@@ -467,29 +467,46 @@ export default function Game() {
       sun.position.copy(sunDir).multiplyScalar(80);
       const dayFactor = Math.max(0, sunDir.y);
       const nightFactor = Math.max(0, -sunDir.y * 0.7 + 0.1);
-      sun.intensity = 0.2 + dayFactor * 1.6;
-      ambient.intensity = 0.25 + dayFactor * 0.5;
-
-      const topDay = new THREE.Color(0.32, 0.55, 0.85);
-      const topNight = new THREE.Color(0.02, 0.03, 0.08);
-      const horDay = new THREE.Color(0.85, 0.78, 0.68);
-      const horDusk = new THREE.Color(0.95, 0.45, 0.25);
-      const horNight = new THREE.Color(0.05, 0.05, 0.12);
       const dusk = Math.pow(Math.max(0, 1 - Math.abs(sunDir.y) * 3), 2);
+
+      // --- global illumination balance (palette-driven) ---
+      const sunDay = new THREE.Color(0xfedc97);
+      const sunDusk = new THREE.Color(0xffb066);
+      const moon = new THREE.Color(0x7c9885);
+      sun.color.copy(sunDay).lerp(sunDusk, dusk).lerp(moon, Math.max(0, -sunDir.y * 1.6));
+      sun.intensity = 0.25 + dayFactor * 1.55;
+
+      ambient.intensity = 0.35 + dayFactor * 0.55;
+      (ambient.color as THREE.Color).copy(new THREE.Color(0xb5b682)).lerp(new THREE.Color(0x28666e), 1 - dayFactor);
+      (ambient.groundColor as THREE.Color).copy(new THREE.Color(0x28666e)).lerp(new THREE.Color(0x033f63), 1 - dayFactor);
+      bounce.intensity = 0.18 + dayFactor * 0.3;
+      rim.intensity = 0.12 + dayFactor * 0.22 + dusk * 0.25;
+
+      const topDay = new THREE.Color(0.09, 0.33, 0.55);
+      const topNight = new THREE.Color(0.008, 0.03, 0.07);
+      const horDay = new THREE.Color(0.72, 0.76, 0.62);
+      const horDusk = new THREE.Color(1.0, 0.78, 0.45);
+      const horNight = new THREE.Color(0.02, 0.09, 0.14);
       const topCol = topDay.clone().lerp(topNight, 1 - dayFactor);
-      const horCol = horDay.clone().lerp(horDusk, dusk).lerp(horNight, Math.max(0, -sunDir.y));
+      const horCol = horDay.clone().lerp(horDusk, dusk).lerp(horNight, Math.max(0, -sunDir.y * 1.4));
 
       const skyMat = (sky.material as THREE.ShaderMaterial);
       (skyMat.uniforms.uSunDir.value as THREE.Vector3).copy(sunDir);
       (skyMat.uniforms.uTop.value as THREE.Color).copy(topCol);
       (skyMat.uniforms.uHorizon.value as THREE.Color).copy(horCol);
       (skyMat.uniforms.uNight.value as number) = nightFactor;
+      (skyMat.uniforms.uTime.value as number) = t;
+      (skyMat.uniforms.uSunColor.value as THREE.Color).copy(sun.color);
 
       (oceanMat.uniforms.uSunDir.value as THREE.Vector3).copy(sunDir);
       (oceanMat.uniforms.uSkyTop.value as THREE.Color).copy(topCol);
       (oceanMat.uniforms.uSkyHorizon.value as THREE.Color).copy(horCol);
+      (oceanMat.uniforms.uSunColor.value as THREE.Color).copy(sun.color);
+      (oceanMat.uniforms.uDayFactor.value as number) = dayFactor;
 
       scene.fog!.color.copy(horCol);
+      (scene.fog as THREE.FogExp2).density = 0.0035 + (1 - dayFactor) * 0.0025;
+
       renderer.toneMappingExposure = 0.85 + dayFactor * 0.45;
 
       for (const f of floaters) {
