@@ -79,6 +79,9 @@ export default function Game() {
     const rim = new THREE.DirectionalLight(0xb5b682, 0.25);
     rim.position.set(-20, 25, -35);
     scene.add(rim);
+    const lantern = new THREE.PointLight(0xfedc97, 0, 26, 2);
+    lantern.visible = false;
+    scene.add(lantern);
 
 
     const oceanMat = createOceanMaterial(camera.position);
@@ -529,7 +532,16 @@ export default function Game() {
         }
       }
 
-      shark.angle += dt * shark.speed * (1 + shark.aggro);
+      // arpão mantém o tubarão a distância
+      const spear = (stateRef.current.items["spear"] ?? 0) > 0;
+      const wantRadius = spear ? 34 : 22;
+      shark.radius += (wantRadius - shark.radius) * Math.min(1, dt * 0.5);
+      // lampião ilumina a jangada à noite
+      lantern.visible = (stateRef.current.items["lantern"] ?? 0) > 0;
+      if (lantern.visible) {
+        lantern.position.set(camera.position.x, raft.y + 3.2, camera.position.z);
+      }
+      shark.angle += dt * shark.speed * (1 + shark.aggro) * (spear ? 0.7 : 1);
       const sx = camera.position.x + Math.cos(shark.angle) * shark.radius;
       const sz = camera.position.z + Math.sin(shark.angle) * shark.radius;
       shark.mesh.position.set(sx, sampleWaveHeight(sx, sz, t) - 0.4, sz);
