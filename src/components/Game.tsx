@@ -32,6 +32,8 @@ export default function Game() {
   const buildModeRef = useRef(false);
   buildModeRef.current = buildMode;
   const [showCraft, setShowCraft] = useState(false);
+  const showCraftRef = useRef(false);
+  showCraftRef.current = showCraft;
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number | null>(null);
 
@@ -538,6 +540,7 @@ export default function Game() {
       shark.radius += (wantRadius - shark.radius) * Math.min(1, dt * 0.5);
       // lampião ilumina a jangada à noite
       lantern.visible = (stateRef.current.items["lantern"] ?? 0) > 0;
+      lantern.intensity = lantern.visible ? 2.4 : 0;
       if (lantern.visible) {
         lantern.position.set(camera.position.x, raft.y + 3.2, camera.position.z);
       }
