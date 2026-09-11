@@ -335,20 +335,44 @@ function ActionButton({
   );
 }
 
+const CRAFT_ICONS: Record<string, React.ReactNode> = {
+  "Sobrevivência": <Utensils className="h-4 w-4" />,
+  Ferramentas: <Hammer className="h-4 w-4" />,
+  Estrutura: <Anchor className="h-4 w-4" />,
+};
+
 function CraftRow({
-  icon, title, cost, yields, onClick,
-}: { icon: React.ReactNode; title: string; cost: string; yields: string; onClick: () => void }) {
+  icon, title, cost, yields, onClick, disabled, note, owned,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  cost: string;
+  yields: string;
+  onClick: () => void;
+  disabled?: boolean;
+  note?: string;
+  owned?: number;
+}) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-3 rounded-lg border border-hud-stroke bg-muted/25 p-3 text-left transition hover:border-primary hover:bg-muted/50"
+      disabled={disabled}
+      className="flex items-center gap-3 rounded-lg border border-hud-stroke bg-muted/25 p-3 text-left transition hover:border-primary hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-hud-stroke"
     >
       <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/15 text-primary">{icon}</div>
       <div className="flex-1">
-        <div className="text-sm font-semibold text-primary">{title}</div>
+        <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+          {title}
+          {!!owned && (
+            <span className="rounded bg-primary/15 px-1.5 font-mono text-[9px] text-accent">x{owned}</span>
+          )}
+        </div>
         <div className="font-mono text-[10px] uppercase tracking-wider text-sage">{cost}</div>
       </div>
-      <div className="font-mono text-[10px] uppercase tracking-wider text-accent">{yields}</div>
+      <div className="max-w-[190px] text-right font-mono text-[10px] uppercase leading-tight tracking-wider text-accent">
+        {disabled && note ? note : yields}
+      </div>
     </button>
+
   );
 }
