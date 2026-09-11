@@ -1,6 +1,6 @@
 import type { GameState } from "@/game/state";
 import { RECIPES, canCraft, costLabel, type ItemId } from "@/game/recipes";
-import { Anchor, Droplets, Flame, Hammer, Heart, Utensils, Zap } from "lucide-react";
+import { Anchor, Droplets, Hammer, Heart, Utensils, Zap } from "lucide-react";
 
 type Props = {
   state: GameState;
