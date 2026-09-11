@@ -1,4 +1,5 @@
 import type { GameState } from "@/game/state";
+import { RECIPES, canCraft, costLabel, type ItemId } from "@/game/recipes";
 import { Anchor, Droplets, Flame, Hammer, Heart, Utensils, Zap } from "lucide-react";
 
 type Props = {
@@ -7,7 +8,7 @@ type Props = {
   showCraft: boolean;
   toast: string | null;
   pointerLocked: boolean;
-  onCraft: (r: "purifier" | "grill" | "expand") => void;
+  onCraft: (r: ItemId) => void;
   onConsume: (w: "food" | "water") => void;
   onToggleBuild: () => void;
   onCloseCraft: () => void;
