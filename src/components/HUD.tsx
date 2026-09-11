@@ -235,8 +235,8 @@ export function HUD({
       {/* crafting panel */}
       {showCraft && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-sm">
-          <div className="w-[460px] rounded-xl border border-hud-stroke bg-card p-6 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
+          <div className="max-h-[85vh] w-[620px] overflow-y-auto rounded-xl border border-hud-stroke bg-card p-6 shadow-2xl">
+            <div className="mb-1 flex items-center justify-between">
               <h2 className="text-xl font-semibold uppercase tracking-[0.2em] text-primary">Bancada</h2>
               <button
                 onClick={onCloseCraft}
@@ -245,32 +245,38 @@ export function HUD({
                 Fechar [C]
               </button>
             </div>
-            <div className="flex flex-col gap-2">
-              <CraftRow
-                icon={<Droplets className="h-4 w-4" />}
-                title="Purificar água"
-                cost="2 Plástico + 1 Sucata"
-                yields="+3 Água"
-                onClick={() => onCraft("purifier")}
-              />
-              <CraftRow
-                icon={<Flame className="h-4 w-4" />}
-                title="Grelhar comida"
-                cost="2 Madeira + 1 Sucata + 1 Comida"
-                yields="+30 Fome"
-                onClick={() => onCraft("grill")}
-              />
-              <CraftRow
-                icon={<Anchor className="h-4 w-4" />}
-                title="Expandir jangada"
-                cost="2 Madeira"
-                yields="+1 Piso"
-                onClick={() => onCraft("expand")}
-              />
-            </div>
+            <p className="mb-5 font-mono text-[10px] uppercase tracking-widest text-sage opacity-70">
+              Mouse liberado · escolha uma receita
+            </p>
+
+            {(["Sobrevivência", "Ferramentas", "Estrutura"] as const).map((cat) => (
+              <div key={cat} className="mb-5">
+                <div className="mb-2 font-mono text-[10px] uppercase tracking-[0.25em] text-accent">{cat}</div>
+                <div className="flex flex-col gap-2">
+                  {RECIPES.filter((r) => r.category === cat).map((r) => {
+                    const check = canCraft(state, r);
+                    const owned = state.items[r.id] ?? 0;
+                    return (
+                      <CraftRow
+                        key={r.id}
+                        icon={CRAFT_ICONS[r.category]}
+                        title={r.name}
+                        cost={costLabel(r.cost)}
+                        yields={r.description}
+                        owned={owned}
+                        disabled={!check.ok}
+                        note={check.reason}
+                        onClick={() => onCraft(r.id)}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
+
 
       {/* death */}
       {state.dead && (
