@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { createOceanMaterial, sampleWaveHeight } from "@/game/ocean";
 import { createSky } from "@/game/sky";
 import { initialState, type GameState, TILE, type RaftTile } from "@/game/state";
+import { RECIPES, canCraft, type ItemId } from "@/game/recipes";
 import { HUD } from "@/components/HUD";
 import { MainMenu } from "@/components/MainMenu";
 
@@ -334,6 +335,7 @@ export default function Game() {
     window.addEventListener("mousemove", onMouseMove);
 
     const onClick = () => {
+      if (showCraftRef.current) return;
       if (document.pointerLockElement !== renderer.domElement) {
         renderer.domElement.requestPointerLock();
         return;
@@ -668,38 +670,63 @@ export default function Game() {
     };
   }, [started, showToast]);
 
+  // abrir a bancada libera o mouse
+  useEffect(() => {
+    if (showCraft && document.pointerLockElement) document.exitPointerLock();
+  }, [showCraft]);
+
+  // efeitos passivos dos itens construídos
   useEffect(() => {
     if (!started) return;
     const id = window.setInterval(() => {
-    }, 1000);
+      setState((c) => {
+        if (c.dead) return c;
+        const net = (c.items["net_trap"] ?? 0) > 0;
+        const collector = (c.items["rain_collector"] ?? 0) > 0;
+        if (!net && !collector) return c;
+        const r = { ...c.resources };
+        if (net && Math.random() < 0.25) {
+          const pick = Math.random();
+          if (pick < 0.45) r.wood += 1;
+          else if (pick < 0.8) r.plastic += 1;
+          else r.scrap += 1;
+        }
+        if (collector && Math.random() < 0.18) r.water += 1;
+        return { ...c, resources: r };
+      });
+    }, 4000);
     return () => clearInterval(id);
   }, [started]);
 
   const craft = useCallback(
-    (recipe: "purifier" | "grill" | "expand") => {
-      const r = state.resources;
-      if (recipe === "purifier") {
-        if (r.plastic < 2 || r.scrap < 1) return showToast("Faltam recursos (2P+1S)");
-        setState((c) => ({
-          ...c,
-          resources: { ...c.resources, plastic: c.resources.plastic - 2, scrap: c.resources.scrap - 1, water: c.resources.water + 3 },
-        }));
-        showToast("+3 Água purificada");
-      } else if (recipe === "grill") {
-        if (r.wood < 2 || r.scrap < 1) return showToast("Faltam recursos (2W+1S)");
-        if (r.food < 1) return showToast("Sem comida crua");
-        setState((c) => ({
-          ...c,
-          resources: { ...c.resources, wood: c.resources.wood - 2, scrap: c.resources.scrap - 1, food: c.resources.food },
-          hunger: { ...c.hunger, value: Math.min(c.hunger.max, c.hunger.value + 30) },
-        }));
-        showToast("Comida grelhada (+30 Fome)");
-      } else if (recipe === "expand") {
-        apiRef.current?.tryPlaceTile();
-      }
+    (id: ItemId) => {
+      const recipe = RECIPES.find((r) => r.id === id);
+      if (!recipe) return;
+      const check = canCraft(stateRef.current, recipe);
+      if (!check.ok) return showToast(check.reason ?? "Não é possível criar");
+
+      setState((c) => {
+        const r = { ...c.resources };
+        for (const [k, v] of Object.entries(recipe.cost)) {
+          r[k as keyof typeof r] -= v as number;
+        }
+        const next: GameState = { ...c, resources: r };
+        if (recipe.consumable) {
+          if (id === "purified_water") next.resources = { ...r, water: r.water + 3 };
+          if (id === "grilled_food")
+            next.hunger = { ...c.hunger, value: Math.min(c.hunger.max, c.hunger.value + 30) };
+          if (id === "bandage")
+            next.health = { ...c.health, value: Math.min(c.health.max, c.health.value + 25) };
+        } else {
+          next.items = { ...c.items, [id]: (c.items[id] ?? 0) + 1 };
+        }
+        return next;
+      });
+      showToast(`${recipe.name} criado`);
     },
-    [state, showToast]
+    [showToast]
   );
+
 
   const consume = useCallback(
     (what: "food" | "water") => {
